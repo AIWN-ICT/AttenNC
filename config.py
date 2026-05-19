@@ -5,8 +5,7 @@ import torch
 EPISODES = 1
 Max_test = 1000
 K = 5
-M = 4
-R = 3
+M = 3
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 batch_size = 32
 extrinsic_reward = 1

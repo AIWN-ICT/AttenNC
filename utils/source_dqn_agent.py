@@ -44,7 +44,7 @@ class DQNAgent_S(nn.Module):
         self.train_start = 0
         self.learning_rate = 0.0001
         self.K = arg_dict['K']
-        self.R = arg_dict['R']
+        self.M = arg_dict['M']
         self.parallel_path = arg_dict['parallel_path']
 
         # Build the online network and its delayed target copy.

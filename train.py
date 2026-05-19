@@ -85,14 +85,14 @@ def build_agents(config, skip_compile=False):
     parallel_path = config["parallel_path"]
     max_nb = config["max_nb"]
     K = config["K"]
-    R = config["R"]
+    M = config["M"]
     batch_size = config["batch_size"]
     device = config["device"]
     max_buffer_size = config["max_buffer_size"]
     enable_relay_coding_selection = config.get("enable_relay_coding_selection", True)
 
-    S_state_size = (R * parallel_path + 2) * K
-    R_state_size = (R * max_nb + 2) * K
+    S_state_size = (M * parallel_path + 2) * K
+    R_state_size = (M * max_nb + 2) * K
 
     model = None
     if enable_relay_coding_selection:

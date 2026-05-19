@@ -11,7 +11,6 @@ def load_config():
         'Max_test': config.Max_test,
         'K': config.K,
         'M': config.M,
-        'R': config.R,
         'device': config.device,
         'batch_size': config.batch_size,
         'extrinsic_reward': config.extrinsic_reward,

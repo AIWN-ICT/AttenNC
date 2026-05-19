@@ -15,7 +15,7 @@ class Network_S(nn.Module):
         super(Network_S, self).__init__()
         self.action_dim = arg_dict['action_size']
         self.K = arg_dict['K']
-        self.R = arg_dict['R']
+        self.M = arg_dict['M']
         self.device = device
         self.parallel_path = arg_dict['parallel_path']
         # MLP sizes
@@ -29,7 +29,7 @@ class Network_S(nn.Module):
         self.self_fc2 = nn.Linear(num_units, num_test)
 
         # Shared path MLP (to support dynamic parallel_path)
-        in_feat = self.R * self.K
+        in_feat = self.M * self.K
         self.shared_path_fc1 = nn.Linear(in_feat, num_path_units)
         self.shared_path_fc2 = nn.Linear(num_path_units, num_test)
         self.path_norm = nn.LayerNorm(num_test)
@@ -48,8 +48,8 @@ class Network_S(nn.Module):
 
     def forward(self, x):
         """Run the attention-based forward pass for a batch of source states."""
-        # x: [B, (R*parallel_path + 2), K]
-        x = x.reshape(-1, self.R * self.parallel_path + 2, self.K)
+        # x: [B, (M*parallel_path + 2), K]
+        x = x.reshape(-1, self.M * self.parallel_path + 2, self.K)
         B = x.size(0)
         self_part = x[:, :2, :].reshape(B, -1)         # [B, 2*K]
         path_part = x[:, 2:, :]                        # [B, R*parallel_path, K]
@@ -68,9 +68,9 @@ class Network_S(nn.Module):
         else:
             # Recompute the path embeddings when the cache is not reusable.
             path_outs = []
-            path_segments = path_part.size(1) // self.R    # dynamic parallel_path count
+            path_segments = path_part.size(1) // self.M    # dynamic parallel_path count
             for i in range(path_segments):
-                seg = path_part[:, i*self.R:(i+1)*self.R, :].reshape(B, -1)  # [B, R*K]
+                seg = path_part[:, i*self.M:(i+1)*self.M, :].reshape(B, -1)  # [B, M*K]
                 h_seg = F.relu(self.shared_path_fc1(seg))                   # [B, num_units]
                 seg_out = F.relu(self.shared_path_fc2(h_seg))               # [B, num_test]
                 path_outs.append(seg_out)

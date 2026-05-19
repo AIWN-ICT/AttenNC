@@ -60,7 +60,7 @@ def run_evaluate(
     parallel_path = config["parallel_path"]
     max_nb = config["max_nb"]
     K = config["K"]
-    R = config["R"]
+    M = config["M"]
     slot_duration = config.get("slot_duration", 0.003)
     frame_slot = config.get("frame_slot", None)
     node_positions = config.get("node_positions", None)
@@ -83,8 +83,8 @@ def run_evaluate(
     enable_relay_coding_selection = config.get("enable_relay_coding_selection", True)
     tdma_slot_schedule = get_tdma_slot_schedule(frame_slot, node_num)
 
-    S_state_size = (R * parallel_path + 2) * K
-    R_state_size = (R * max_nb + 2) * K
+    S_state_size = (M * parallel_path + 2) * K
+    R_state_size = (M * max_nb + 2) * K
     source_id = 0
 
     os.makedirs(result_dir, exist_ok=True)
@@ -125,7 +125,7 @@ def run_evaluate(
         total_reward = 0
         test_nodelist = []
         for i in range(node_num):
-            node = NODE(K, R, i)
+            node = NODE(K, M, i)
             node.reset_episode_state()
             test_nodelist.append(node)
 
@@ -198,7 +198,7 @@ def run_evaluate(
                         neighbor_matrix=neighbor_matrix,
                         state_size=S_state_size,
                         K=K,
-                        R=R,
+                        R=M,
                         agent_s=agent_s,
                         generation_start_times=generation_start_times,
                         active_generation_id=active_generation_id,
@@ -248,7 +248,7 @@ def run_evaluate(
                             neighbor_matrix=neighbor_matrix,
                             state_size=R_state_size,
                             K=K,
-                            R=R,
+                            R=M,
                             max_nb=max_nb,
                             model=model,
                             agent_r=agent_r,
