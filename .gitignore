@@ -1,0 +1,45 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test / coverage caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local experiment outputs
+results/
+packet_log/
+data_incdeep_llm/
+
+# Model artifacts
+# Keep demo/example weights in models/ if you want them tracked.
+# For larger training outputs, prefer a subdirectory such as models/checkpoints/
+# and ignore that folder instead of the whole models directory.
+models/checkpoints/
+
+# Logs
+*.log

@@ -1,0 +1,6 @@
+# Keep this example checkpoint directory in Git.
+# Put lightweight demo files here, for example:
+# - dqn_agent_s_min.pt
+# - dqn_agent_r_min.pt
+# - gnn_model_dqn.pt
+# - best_epoch_GNN.pkl
