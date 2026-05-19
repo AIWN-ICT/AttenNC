@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL_DIR = BASE_DIR / "models" / "examples" / "best_by_avg_source_send"
 DEFAULT_RESULT_DIR = BASE_DIR / "results"
 PACKET_LOG_DIR = BASE_DIR / "packet_log"
-METRICS_DIR = BASE_DIR / "data_incdeep_llm"
+METRICS_DIR = BASE_DIR / "data_attenNC"
 PACKET_COUNT_LOG = "source_send_counts.csv"
 AGGREGATED_METRICS_BASENAME = "decode_probability_summary"
 

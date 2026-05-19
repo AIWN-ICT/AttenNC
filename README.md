@@ -73,7 +73,7 @@ AttenNC/
 │  │  └─ README.md
 │  ├─ results/
 │  ├─ packet_log/
-│  └─ data_incdeep_llm/
+│  └─ data_attenNC/
 │
 ├─ requirements.txt
 ├─ .gitignore
@@ -175,7 +175,7 @@ By default, generated artifacts are written to mode-separated subfolders (`selec
 
 - `results/`: per-run summaries and logs
 - `packet_log/`: packet transmission count CSV files
-- `data_incdeep_llm/`: aggregated decode-probability and related metrics
+- `data_attenNC/`: aggregated decode-probability and related metrics
 - `models/checkpoints/`: local training checkpoints (usually not committed)
 - `models/examples/`: lightweight demo checkpoints for quick reproducibility
 
