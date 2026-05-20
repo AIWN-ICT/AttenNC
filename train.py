@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from config import SEED
 from config_parser import load_config
 from evaluate import run_evaluate
 from network_layers import set_tdma_seed
@@ -23,16 +24,15 @@ from utils.gnn_model import GNNMARL
 torch.backends.cudnn.enabled = False
 np.set_printoptions(threshold=np.inf)
 
-seed = 555
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL_DIR = BASE_DIR / "models" / "checkpoints" / "best_by_avg_source_send"
 DEFAULT_RESULT_DIR = BASE_DIR / "results"
 
 
-torch.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed)
-set_tdma_seed(seed)
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
+set_tdma_seed(SEED)
 
 
 def build_parser():

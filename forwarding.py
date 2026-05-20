@@ -111,7 +111,7 @@ def forward_data(
                     phy_header_length,
                 )
                 max_link_delay = max(max_link_delay, link_delay)
-                if random.random() <= float(links[node_id][dst]):
+                if np.random.rand() <= float(links[node_id][dst]):
                     delivered_nodes.add(dst)
                     delivery_times[dst] = tx_start_time + link_delay
                 else:

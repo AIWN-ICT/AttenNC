@@ -28,6 +28,7 @@ action_size = 2
 Max_s_f = 50
 inital_epsilon = 1
 restart_max = 30
+SEED = 555
 
 # ---------------------------- Time ----------------------------- #
 # Align with FQF: the simulation time unit is microseconds (us).
