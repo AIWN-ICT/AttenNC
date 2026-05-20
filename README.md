@@ -150,6 +150,17 @@ Example:
 python main.py test --model-dir ./models/examples/best_by_avg_source_send --result-dir ./results --skip-compile --mode off
 ```
 
+You can also run `test.py` directly and explicitly specify checkpoint paths. If `--model-dir`/`--best-state` are not provided, the script falls back to its built-in default directories.
+
+```bash
+python test.py --model-dir models/best_by_avg_source_send --best-state models/best_by_avg_source_send/best_epoch.pkl
+```
+
+`--best-state` supports:
+- filename only (resolved under final `--model-dir`), e.g. `best_epoch_GNN.pkl`
+- relative path (resolved from project directory)
+- absolute path
+
 ## Mode behavior (`--mode on|off`)
 
 `--mode` controls relay coding-node selection and automatically chooses mode-specific subfolders (`selection_on/` or `selection_off/`) under the provided `--model-dir` and output directories.
@@ -203,3 +214,13 @@ If you want reproducible experiments for publication or sharing, record the exac
 - Keep source code and documentation in the repository.
 - Ignore generated outputs and temporary files with `.gitignore`.
 - Only commit small demo checkpoints under `models/examples/`; keep training outputs in `models/checkpoints/` local-only (or distribute large ones via Git LFS/GitHub Releases).
+
+## Packet Loss Model
+
+AttenNC currently adopts a link-quality packet-loss model: each directed link is assigned a delivery probability, and each packet reception event is sampled from that probability during simulation.
+
+Per-link delivery probabilities are defined in `config_topology.py` and consumed by the simulation pipeline at runtime.
+
+As an alternative, a SINR/interference-threshold model can be used, where packet success is determined by instantaneous signal, noise, and interference conditions.
+
+We keep the link-quality model in the current release because it is straightforward to calibrate, supports stable reinforcement-learning training, and improves reproducibility for topology-level evaluation. The SINR/interference-threshold formulation remains a natural direction for future work targeting time-varying wireless dynamics and higher physical-layer fidelity.

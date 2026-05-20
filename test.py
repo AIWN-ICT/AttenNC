@@ -50,7 +50,7 @@ def build_parser():
     parser.add_argument(
         "--best-state",
         default="best_epoch_GNN.pkl",
-        help="Filename or path for best random-state snapshot inside the selected model directory",
+        help="Best random-state snapshot path. Supports filename (resolved in model-dir) or relative/absolute path.",
     )
     parser.add_argument("--skip-compile", action="store_true", help="Disable torch.compile for compatibility")
     parser.add_argument(
@@ -74,12 +74,22 @@ def resolve_paths(args, enable_relay_coding_selection):
         model_dir = BASE_DIR / model_dir
 
     mode_subdir = "selection_on" if enable_relay_coding_selection else "selection_off"
-    model_dir = model_dir / mode_subdir
+
+    # Keep backward-compatible defaults: prefer mode subdirectory when it exists.
+    model_dir_with_mode = model_dir / mode_subdir
+    if model_dir_with_mode.exists():
+        model_dir = model_dir_with_mode
+
     result_dir = result_dir / mode_subdir
 
     best_state_path = Path(args.best_state)
     if not best_state_path.is_absolute():
-        best_state_path = model_dir / best_state_path
+        # If user explicitly passed a relative path (e.g. models/.../best_epoch.pkl),
+        # resolve it from BASE_DIR; otherwise treat it as filename in model_dir.
+        if len(best_state_path.parts) > 1:
+            best_state_path = BASE_DIR / best_state_path
+        else:
+            best_state_path = model_dir / best_state_path
 
     os.makedirs(result_dir, exist_ok=True)
     return result_dir, model_dir, best_state_path

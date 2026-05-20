@@ -47,6 +47,7 @@ def run_evaluate(
     best_state_path=None,
     save_csv: bool = True,
     enable_training_updates: bool = False,
+    show_test_progress: bool = True,
 ):
     """Run one evaluation episode over multiple TDMA tests and persist summary outputs."""
 
@@ -339,10 +340,11 @@ def run_evaluate(
         decoded_generation_packets = len(get_generation_buffer(test_nodelist[node_num - 1], active_generation_id))
         overhead = (1 / K) * (decoded_generation_packets - K) * 100
         avg_overhead += overhead
-        elapsed = time.time() - start_time
-        average_time = elapsed / (test + 1)
-        remaining_time = average_time * (Max_test - (test + 1))
-        print("\r test: %d, remaining: %d s" % (test, remaining_time), end="")
+        if show_test_progress:
+            elapsed = time.time() - start_time
+            average_time = elapsed / (test + 1)
+            remaining_time = average_time * (Max_test - (test + 1))
+            print("\r test: %d, remaining: %d s" % (test, remaining_time), end="")
 
     avg_s_f = avg_s_f / Max_test
     avg_reward = avg_reward / Max_test

@@ -162,6 +162,7 @@ def main(argv=None):
             best_state_path=best_state_path,
             save_csv=False,
             enable_training_updates=True,
+            show_test_progress=False,
         )
 
         if metrics["is_best"]:
@@ -179,8 +180,10 @@ def main(argv=None):
         elapsed_time = time.time() - start_time
         average_time = elapsed_time / (e + 1)
         remaining_time = average_time * (episodes - (e + 1))
-        if e % 10 == 0:
-            print("\r episode: %d, remaining: %d s" % (e, remaining_time), end="")
+
+        # 每 10 个 episodes 打印一次训练剩余时间
+        if (e + 1) % 10 == 0:
+            print("episode: %d, training remaining: %d s" % (e + 1, remaining_time))
 
 
 if __name__ == "__main__":
