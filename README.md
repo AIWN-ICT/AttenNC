@@ -16,10 +16,7 @@ AttenNC is an adaptive learning and simulation framework for generalizable netwo
 - [Mode behavior (`--mode on|off`)](#mode-behavior---mode-onoff)
 - [Outputs](#outputs)
 - [Configuration](#configuration)
-<<<<<<< HEAD
-=======
 - [Recommended `EPISODES` / `Max_test` settings](#recommended-episodes--max_test-settings)
->>>>>>> d999ff7 (update)
 - [Notes for GitHub publishing](#notes-for-github-publishing)
 - [Simulation time model and event scheduling](#simulation-time-model-and-event-scheduling)
 - [Packet loss model](#packet-loss-model)
@@ -193,26 +190,9 @@ If `--model-dir` / `--best-state` are omitted, `test.py` uses built-in default p
 
 `--mode` controls relay coding-node selection and automatically uses mode-specific subfolders (`selection_on/` or `selection_off/`) under the provided `--model-dir` and output directories.
 
-<<<<<<< HEAD
-- `--mode on`
-  - Enables relay coding-node selection (with GNN gating when applicable).
-  - Trains/loads Source DQN + Relay DQN + GNN.
-  - Typical checkpoints: `dqn_agent_s_min.pt`, `dqn_agent_r_min.pt`, `gnn_model_dqn.pt`, `best_epoch_GNN.pkl`.
-
-- `--mode off`
-  - Disables relay coding-node selection (relay follows coding path without GNN gating decisions).
-  - Trains/loads Source DQN + Relay DQN only.
-  - Typical checkpoints: `dqn_agent_s_min.pt`, `dqn_agent_r_min.pt`, `best_epoch_GNN.pkl`.
-
-Default locations used in practice:
-
-- Training checkpoints: `models/checkpoints/best_by_avg_source_send/<selection_on|selection_off>/`
-- Example test checkpoints: `models/examples/best_by_avg_source_send/<selection_on|selection_off>/`
-=======
 In short: `--mode on` trains/tests Source DQN + Relay DQN + GNN, while `--mode off` trains/tests Source DQN + Relay DQN without relay coding-node selection.
 
 For the complete checkpoint layout and naming/saving rules (including `episode_<index>` best-checkpoint folders), see [`models/README.md`](./models/README.md).
->>>>>>> d999ff7 (update)
 
 ## Outputs
 
@@ -228,11 +208,7 @@ By default, artifacts are written to mode-specific subfolders (`selection_on/` /
 - `models/checkpoints/`: local training checkpoints (typically untracked)
 - `models/examples/`: lightweight demo checkpoints for reproducibility
 
-<<<<<<< HEAD
-See `models/README.md` for checkpoint layout details.
-=======
 See [`models/README.md`](./models/README.md) for checkpoint layout details.
->>>>>>> d999ff7 (update)
 
 ## Configuration
 
