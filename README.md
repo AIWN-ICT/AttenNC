@@ -6,6 +6,11 @@
 
 AttenNC is an adaptive learning and simulation framework for generalizable network coding. It combines Source/Relay DQN with optional GNN-based relay-node selection, and includes training, evaluation, topology/protocol configuration, and experiment-output utilities.
 
+### What this repo is / is not
+
+- **This repo is** a research prototype for RL + network coding and a reproducible experiment framework for algorithm comparison.
+- **This repo is not** a high-fidelity industrial network simulator for strict real-world latency/capacity certification.
+
 ---
 
 ## Table of Contents
@@ -255,6 +260,16 @@ For reproducible experiments, record exact configuration values used in these fi
 ## Simulation time model and event scheduling
 
 AttenNC uses a slot-driven simulation loop with delayed event commitment. In each frame, source/relay transmission decisions are made in TDMA slots, while packet arrivals, ACK/NACK feedback, and decode/reward acknowledgments are applied when modeled arrival times are reached.
+
+### ACK timing approximation
+
+In this release, control feedback packets are modeled with propagation/transmission delay but do **not** consume an additional dedicated TDMA data slot. This applies to link-level `ACK`/`NACK`, destination-to-source `DECODE_ACK`, and reward propagation `REWARD_ACK`. These packets are inserted into delayed event queues and committed when their modeled arrival times are reached.
+
+### Implications and limitations
+
+This approximation is suitable for **relative** comparison of coding/forwarding policies under fixed configurations because it keeps RL decision points aligned with data-transmission slots and improves reproducibility by avoiding extra control-channel contention assumptions. However, it is less suitable for strict absolute-latency claims in systems where control-channel occupancy is a dominant bottleneck.
+
+Future higher-fidelity directions include explicit control-slot (or mini-slot) modeling for ACK/NACK/DECODE_ACK, control-traffic contention/collision modeling, and a fully event-driven concurrent scheduler with globally ordered same-timestamp processing.
 
 Why this design is used now:
 
