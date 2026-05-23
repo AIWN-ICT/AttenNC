@@ -11,17 +11,26 @@ This directory is split into two purposes:
 models/
 ├─ examples/
 │  └─ best_by_avg_source_send/
-│     ├─ dqn_agent_s_min.pt
-│     ├─ dqn_agent_r_min.pt
-│     ├─ gnn_model_dqn.pt
-│     └─ best_epoch_GNN.pkl
+│     └─ <selection_on|selection_off>/
+│        ├─ dqn_agent_s_min.pt
+│        ├─ dqn_agent_r_min.pt
+│        ├─ gnn_model_dqn.pt
+│        └─ best_epoch_GNN.pkl
 └─ checkpoints/
    └─ best_by_avg_source_send/
-      ├─ dqn_agent_s_min.pt
-      ├─ dqn_agent_r_min.pt
-      ├─ gnn_model_dqn.pt
-      └─ best_epoch_GNN.pkl
+      └─ <selection_on|selection_off>/
+         ├─ episode_1/
+         │  ├─ dqn_agent_s_min.pt
+         │  ├─ dqn_agent_r_min.pt
+         │  ├─ gnn_model_dqn.pt
+         │  └─ best_epoch_GNN.pkl
+         ├─ episode_20/
+         │  └─ ...
+         └─ episode_N/
+            └─ ...
 ```
+
+Training behavior: whenever a new best checkpoint is found, training saves it into a new `episode_<index>/` folder. File names remain unchanged across episodes; the folder name indicates when the best was achieved.
 
 ## Default evaluation path
 

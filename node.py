@@ -186,41 +186,64 @@ class NODE:
                     get_local_neighbor_receivememory(nodelist, neighbor_matrix, node_id, neighbors[m], R, K)[j]
         return state, neighbors
 
-    def build_relay_features(self, nodelist, neighbor_matrix, node_id, max_nb):
-        """Build the compact relay feature tensor consumed by the GNN policy."""
+    def build_relay_features(self, nodelist, neighbor_matrix, node_id, max_nb, K):
+        """Build compact relay features and local adjacency for the GNN policy.
+
+        Returns:
+            combined_features: np.ndarray, shape [1, N, K], N = 1 + len(active_neighbors)
+            adj_mask: np.ndarray, shape [1, N, N], local adjacency over [self, neighbors...]
+            active_neighbors: np.ndarray, selected next-hop node ids
+        """
         next_hop_nodes = np.where(neighbor_matrix[node_id] == 1)[0]
-        if not hasattr(self, 'feature_buffer'):
-            self.feature_buffer = np.zeros((1, max_nb + 1, 4), dtype=np.float32)
+        max_neighbor_slots = max_nb
+        active_neighbors = next_hop_nodes[:max_neighbor_slots]
+        num_nodes = 1 + len(active_neighbors)
+
+        if (
+            not hasattr(self, 'feature_buffer')
+            or self.feature_buffer.shape[1] != num_nodes
+            or self.feature_buffer.shape[2] != K
+        ):
+            self.feature_buffer = np.zeros((1, num_nodes, K), dtype=np.float32)
+
         combined_features = self.feature_buffer
-        combined_features.fill(0)
-        combined_features[0, 0, 0] = self.local_stats['code_packets']
-        combined_features[0, 0, 1] = self.local_stats['code_rank']
+        combined_features.fill(0.0)
 
-        if not hasattr(self, 'edge_stats'):
-            self.edge_stats = np.zeros(2, dtype=np.float32)
-        edge_stats = self.edge_stats
+        combined_features[0, 0, 0] = float(self.local_stats.get('code_packets', 0))
+        combined_features[0, 0, 1] = float(self.local_stats.get('code_rank', 0))
 
-        for idx, next_hop in enumerate(next_hop_nodes):
-            if idx >= max_nb - 1:
-                break
+        for idx, next_hop in enumerate(active_neighbors):
+            row = idx + 1
             neighbor_stats = nodelist[next_hop].local_stats
-            combined_features[0, idx + 1, :2] = [
-                neighbor_stats['code_packets'],
-                neighbor_stats['code_rank']
-            ]
-            edge_stats.fill(0)
-            edge_stats[0] = self.local_stats['edge_loss_count'].get(next_hop, 0)
-            edge_stats[1] = self.local_stats['edge_rank_increase_count'].get(next_hop, 0)
-            combined_features[0, idx + 1, 2:] = edge_stats
-        return combined_features, next_hop_nodes
+
+            combined_features[0, row, 0] = float(neighbor_stats.get('code_packets', 0))
+            combined_features[0, row, 1] = float(neighbor_stats.get('code_rank', 0))
+
+            if K > 2:
+                combined_features[0, row, 2] = float(self.local_stats['edge_loss_count'].get(next_hop, 0))
+            if K > 3:
+                combined_features[0, row, 3] = float(self.local_stats['edge_rank_increase_count'].get(next_hop, 0))
+
+        if not hasattr(self, 'adj_buffer') or self.adj_buffer.shape[1] != num_nodes:
+            self.adj_buffer = np.zeros((1, num_nodes, num_nodes), dtype=np.float32)
+        adj_mask = self.adj_buffer
+        adj_mask.fill(0.0)
+
+        index_to_node = np.concatenate(([node_id], active_neighbors))
+        for i, src in enumerate(index_to_node):
+            for j, dst in enumerate(index_to_node):
+                if src == dst or neighbor_matrix[src, dst] == 1:
+                    adj_mask[0, i, j] = 1.0
+
+        return combined_features, adj_mask, active_neighbors
 
     def prepare_relay_tensor(self, combined_features, device):
         """Move relay features into a reusable tensor on the target device."""
-        if not hasattr(self, 'features_tensor'):
-            self.features_tensor = torch.zeros((1, combined_features.shape[1] * combined_features.shape[2]), device=device)
-        input_features = self.features_tensor
-        input_features.copy_(torch.from_numpy(combined_features.reshape(1, -1)))
-        return input_features
+        return torch.from_numpy(combined_features).to(device)
+
+    def prepare_adj_tensor(self, adj_mask, device):
+        """Move adjacency mask into a tensor on the target device."""
+        return torch.from_numpy(adj_mask).to(device)
 
     def append_local_transition(self, state, next_state, action):
         """Store one local transition snapshot for later learning updates."""

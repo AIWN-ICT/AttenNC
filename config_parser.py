@@ -8,6 +8,7 @@ def load_config():
     """Return a flat dictionary that combines runtime and topology settings."""
     return {
         'EPISODES': config.EPISODES,
+        'train_eval_interval': getattr(config, 'TRAIN_EVAL_INTERVAL', 1),
         'Max_test': config.Max_test,
         'K': config.K,
         'M': config.M,

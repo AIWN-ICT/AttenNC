@@ -34,6 +34,22 @@ _time_stats_template = {
 }
 
 
+def _reward_value(reward_obj) -> float:
+    """Convert scalar reward-like object (tensor/number) to float."""
+    if isinstance(reward_obj, torch.Tensor):
+        return float(reward_obj.detach().cpu().item())
+    return float(reward_obj)
+
+
+def _sum_pending_node_rewards(test_nodelist) -> float:
+    """Sum all per-node rewards currently staged for buffer insertion."""
+    total = 0.0
+    for node in test_nodelist:
+        for reward_obj in node.list_reward_obj:
+            total += _reward_value(reward_obj)
+    return total
+
+
 def run_evaluate(
     *,
     e: int,
@@ -123,7 +139,9 @@ def run_evaluate(
 
     for test in range(Max_test):
         ctx.reset()
-        total_reward = 0
+        total_reward = 0.0
+        train_episode_reward_sum = 0.0
+        test_episode_reward_sum = 0.0
         test_nodelist = []
         for i in range(node_num):
             node = NODE(K, M, i)
@@ -142,7 +160,7 @@ def run_evaluate(
         max_rank = 0
         active_generation_id = 1
         source_packet = None
-        reward_ack_sent_generations = set()
+        reward_ack_sent_packet_ids = set()
         generation_start_times = {}
         generation_decode_recorded = set()
         generation_decode_compute_delays = []
@@ -296,30 +314,35 @@ def run_evaluate(
                 )
                 ctx.flush_pending_events(ctx.simulated_network_time)
 
-            pending_queue = any(len(test_nodelist[i].packet) > 0 for i in range(1, node_num - 1)) or bool(ctx.pending_data_arrivals)
             decode_ack_received = source_has_decode_ack(test_nodelist, source_id, active_generation_id)
 
-            if not pending_queue or decode_ack_received:
+            if source_packet is not None and source_packet.packet_id not in reward_ack_sent_packet_ids:
                 rank = generation_rank(test_nodelist[node_num - 1], active_generation_id)
                 S = rank - rank_des_buffer
                 round_bonus = calculate_reward(K, S, rank)
                 if rank > max_rank:
                     max_rank = rank
 
-                if source_packet is not None and active_generation_id not in reward_ack_sent_generations:
-                    sim_slots.schedule_reward_ack(
-                        test_nodelist,
-                        ctx.event_manager,
-                        source_id,
-                        node_num - 1,
-                        source_packet,
-                        round_bonus,
-                        ctx.simulated_network_time,
-                        ctx.pending_reward_ack_arrivals,
-                    )
-                    reward_ack_sent_generations.add(active_generation_id)
-                    ctx.flush_pending_events(ctx.simulated_network_time)
+                sim_slots.schedule_reward_ack(
+                    test_nodelist,
+                    ctx.event_manager,
+                    source_id,
+                    node_num - 1,
+                    source_packet,
+                    round_bonus,
+                    ctx.simulated_network_time,
+                    ctx.pending_reward_ack_arrivals,
+                )
+                reward_ack_sent_packet_ids.add(source_packet.packet_id)
+                ctx.flush_pending_events(ctx.simulated_network_time)
 
+            if source_packet is not None and source_has_reward_ack(
+                test_nodelist,
+                source_id,
+                packet_id=source_packet.packet_id,
+            ):
+                rank = generation_rank(test_nodelist[node_num - 1], active_generation_id)
+                S = rank - rank_des_buffer
                 for i in range(1, node_num - 1):
                     for j in range(test_nodelist[i].gnn_list_len):
                         old_reward = test_nodelist[i].list_reward_obj[j]
@@ -327,12 +350,27 @@ def run_evaluate(
                         test_nodelist[i].list_reward_obj[j] = calculate_reward_GNN(K, S, rank, action) + old_reward
                 rank_des_buffer = rank
 
-                if source_has_reward_ack(test_nodelist, source_id, active_generation_id):
-                    sim_slots.flush_round_transitions(test_nodelist, agent_s, agent_r, enable_training_updates)
+                # Training metric: per-round sum of rewards staged to be inserted into replay buffers.
+                train_episode_reward_sum += _sum_pending_node_rewards(test_nodelist)
+
+                # Testing metric: per-round sum after reward_ack reaches source and two reward parts are merged.
+                test_episode_reward_sum += _sum_pending_node_rewards(test_nodelist)
+
+                sim_slots.flush_round_transitions(test_nodelist, agent_s, agent_r, enable_training_updates)
 
                 if decode_ack_received:
-                    total_reward = total_reward / ss_f_num
                     break
+
+        if enable_training_updates:
+            # Training: single-episode reward = (episode reward sum) / (source sends used for decoding).
+            episode_reward_sum = train_episode_reward_sum
+        else:
+            # Testing: per-test reward = (episode merged reward sum) / (source sends used for decoding);
+            # final output remains averaged over Max_test.
+            episode_reward_sum = test_episode_reward_sum
+
+        episode_reward = episode_reward_sum / max(1, ss_f_num)
+        total_reward = episode_reward
 
         avg_reward += total_reward
         source_send_count_list.append(ss_f_num)

@@ -52,6 +52,12 @@ def build_parser():
         default=None,
         help="Relay coding-node selection mode: on=enable selection, off=disable selection",
     )
+    parser.add_argument(
+        "--eval-interval",
+        type=int,
+        default=None,
+        help="Override test/evaluate interval in episodes (must be >= 1)",
+    )
     return parser
 
 
@@ -116,18 +122,30 @@ def build_agents(config, skip_compile=False):
 
 
 
-def save_best_models(model_dir, best_state_path, best_state, agent_s, agent_r, model, enable_relay_coding_selection=True):
-    """Persist the current best-performing checkpoints and random state."""
-    agent_r.save_network(str(model_dir / "dqn_agent_r_min.pt"))
-    agent_s.save_network(str(model_dir / "dqn_agent_s_min.pt"))
+def save_best_models(
+    model_dir,
+    best_state_path,
+    best_state,
+    agent_s,
+    agent_r,
+    model,
+    episode,
+    enable_relay_coding_selection=True,
+):
+    """Persist best-performing checkpoints into episode subdirectories."""
+    episode_tag = f"episode_{episode + 1}"
+    episode_model_dir = model_dir / episode_tag
+    episode_model_dir.mkdir(parents=True, exist_ok=True)
 
-    gnn_model_path = model_dir / "gnn_model_dqn.pt"
+    agent_r.save_network(str(episode_model_dir / "dqn_agent_r_min.pt"))
+    agent_s.save_network(str(episode_model_dir / "dqn_agent_s_min.pt"))
+
+    gnn_model_path = episode_model_dir / "gnn_model_dqn.pt"
     if enable_relay_coding_selection:
         model.save_network(str(gnn_model_path))
-    elif gnn_model_path.exists():
-        os.remove(gnn_model_path)
 
-    with open(best_state_path, "wb") as f:
+    best_state_snapshot_path = episode_model_dir / best_state_path.name
+    with open(best_state_snapshot_path, "wb") as f:
         pickle.dump({"best_state": best_state}, f)
 
 
@@ -143,6 +161,11 @@ def main(argv=None):
     enable_relay_coding_selection = config.get("enable_relay_coding_selection", True)
     episodes = config["EPISODES"]
     max_s_f = config["Max_s_f"]
+    train_eval_interval = max(1, int(config.get("train_eval_interval", 1)))
+    if args.eval_interval is not None:
+        if args.eval_interval < 1:
+            raise ValueError("--eval-interval must be >= 1")
+        train_eval_interval = args.eval_interval
 
     result_dir, model_dir, best_state_path = resolve_paths(args, enable_relay_coding_selection)
     model, agent_s, agent_r = build_agents(config, args.skip_compile)
@@ -150,32 +173,36 @@ def main(argv=None):
     min_f = max_s_f
 
     for e in range(episodes):
-        metrics = run_evaluate(
-            e=e,
-            config=config,
-            agent_s=agent_s,
-            agent_r=agent_r,
-            model=model,
-            result_dir=str(result_dir),
-            min_f=min_f,
-            load_best_state=False,
-            best_state_path=best_state_path,
-            save_csv=False,
-            enable_training_updates=True,
-            show_test_progress=False,
-        )
+        should_eval = ((e + 1) % train_eval_interval == 0) or (e == episodes - 1)
 
-        if metrics["is_best"]:
-            min_f = metrics["avg_s_f"]
-            save_best_models(
-                model_dir,
-                best_state_path,
-                metrics["best_state"],
-                agent_s,
-                agent_r,
-                model,
-                enable_relay_coding_selection=enable_relay_coding_selection,
+        if should_eval:
+            metrics = run_evaluate(
+                e=e,
+                config=config,
+                agent_s=agent_s,
+                agent_r=agent_r,
+                model=model,
+                result_dir=str(result_dir),
+                min_f=min_f,
+                load_best_state=False,
+                best_state_path=best_state_path,
+                save_csv=False,
+                enable_training_updates=True,
+                show_test_progress=False,
             )
+
+            if metrics["is_best"]:
+                min_f = metrics["avg_s_f"]
+                save_best_models(
+                    model_dir,
+                    best_state_path,
+                    metrics["best_state"],
+                    agent_s,
+                    agent_r,
+                    model,
+                    e,
+                    enable_relay_coding_selection=enable_relay_coding_selection,
+                )
 
         elapsed_time = time.time() - start_time
         average_time = elapsed_time / (e + 1)

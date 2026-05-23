@@ -3,6 +3,9 @@
 import torch
 
 EPISODES = 1
+# 在训练过程中，每训练 TRAIN_EVAL_INTERVAL 个 episode 才执行一次 test/evaluate。
+# 设为 1 表示每个 episode 都测试；设为 N>1 可减少测试频率，并按测试结果更新最佳模型。
+TRAIN_EVAL_INTERVAL = 1
 Max_test = 1000
 K = 5
 M = 3

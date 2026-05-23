@@ -247,24 +247,6 @@ class LinkEventManager:
             if ready_reward_ack:
                 progressed = True
                 for event in sorted(ready_reward_ack, key=lambda item: item['arrival_time']):
-                    self.apply_reward_ack_arrival(
-                        event['nodelist'],
-                        event['source_id'],
-                        event['destination_id'],
-                        event['reward_ack_packet'],
-                    )
-                ready_ids = {id(event) for event in ready_reward_ack}
-                self.pending_reward_ack_arrivals[:] = [
-                    event for event in self.pending_reward_ack_arrivals if id(event) not in ready_ids
-                ]
-
-            ready_reward_ack = [
-                event for event in self.pending_reward_ack_arrivals
-                if event['arrival_time'] <= until_time + 1e-12
-            ]
-            if ready_reward_ack:
-                progressed = True
-                for event in sorted(ready_reward_ack, key=lambda item: item['arrival_time']):
                     event['reward_ack_packet'].create_time = round(event['arrival_time'], 2)
                     self.apply_reward_ack_arrival(
                         event['nodelist'],
@@ -343,9 +325,23 @@ def source_has_decode_ack(nodelist, source_id, generation_id):
     )
 
 
-def source_has_reward_ack(nodelist, source_id, generation_id):
-    """Return whether the source has already received the reward ACK for the generation."""
-    return any(
-        feedback.is_reward_ack and feedback.generation_id == generation_id
-        for feedback in nodelist[source_id].received_feedback_history
-    )
+def source_has_reward_ack(nodelist, source_id, generation_id=None, packet_id=None):
+    """Return whether the source has already received a matching reward ACK.
+
+    Matching priority:
+    1) packet_id (when provided)
+    2) generation_id (fallback for backward compatibility)
+    """
+    if packet_id is not None:
+        return any(
+            feedback.is_reward_ack and feedback.packet_id == packet_id
+            for feedback in nodelist[source_id].received_feedback_history
+        )
+
+    if generation_id is not None:
+        return any(
+            feedback.is_reward_ack and feedback.generation_id == generation_id
+            for feedback in nodelist[source_id].received_feedback_history
+        )
+
+    return any(feedback.is_reward_ack for feedback in nodelist[source_id].received_feedback_history)

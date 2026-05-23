@@ -299,11 +299,12 @@ def execute_relay_slot(test_nodelist, params: RelaySlotParams):
     reset_dqn_episode_buffers(test_nodelist[relay_id])
     r_data = np.array(last_data, dtype=np.float32).copy()
 
-    combined_features, _next_hop_nodes = test_nodelist[relay_id].build_relay_features(
+    combined_features, adj_mask, _next_hop_nodes = test_nodelist[relay_id].build_relay_features(
         test_nodelist,
         params.neighbor_matrix,
         relay_id,
         params.max_nb,
+        params.K,
     )
 
     l = test_nodelist[relay_id].codelen
@@ -323,7 +324,8 @@ def execute_relay_slot(test_nodelist, params: RelaySlotParams):
         params.node_coding_stats[relay_id]["Coding"] += 1
     else:
         input_features = test_nodelist[relay_id].prepare_relay_tensor(combined_features, params.device)
-        action = params.model.select_action(input_features)
+        input_adj = test_nodelist[relay_id].prepare_adj_tensor(adj_mask, params.device)
+        action = params.model.select_action(input_features, adj_mask=input_adj)
         params.action_stats[relay_id]["gnn_count"] += 1
         action_val = action.item() if isinstance(action, torch.Tensor) else action
         if action_val == 1:

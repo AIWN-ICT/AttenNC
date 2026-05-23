@@ -42,20 +42,23 @@ class Network(nn.Module):
         """Initialize a 2-layer, 2-head GAT for relay decisions."""
         super(Network, self).__init__()
         self.action_dim = arg_dict['action_size']
-        self.K = 4
+        self.K = int(arg_dict.get('K', 4))
         self.parallel_path = arg_dict['max_nb']
-        self.num_heads = 2
+        self.num_heads = int(arg_dict.get('num_heads', 1))
+        if self.K % self.num_heads != 0:
+            raise ValueError(f"K ({self.K}) must be divisible by num_heads ({self.num_heads}).")
+        self.head_dim = self.K // self.num_heads
 
         num_units = arg_dict['fc2_features']
         num_test = num_units // 2
 
-        # Layer 1: K -> K (per head K/2, concat heads keeps K unchanged)
+        # Layer 1: K -> K (per head K/num_heads, concat heads keeps K unchanged)
         self.gat1_fc = nn.Linear(self.K, self.K, bias=False)
-        self.gat1_attn = nn.Parameter(torch.empty(self.num_heads, self.K))
+        self.gat1_attn = nn.Parameter(torch.empty(self.num_heads, 2 * self.head_dim))
 
         # Layer 2: K -> K (same output dimensionality as input)
         self.gat2_fc = nn.Linear(self.K, self.K, bias=False)
-        self.gat2_attn = nn.Parameter(torch.empty(self.num_heads, self.K))
+        self.gat2_attn = nn.Parameter(torch.empty(self.num_heads, 2 * self.head_dim))
 
         self.self_proj = nn.Linear(self.K, num_test)
         self.path_proj = nn.Linear(self.K, num_test)
@@ -75,42 +78,87 @@ class Network(nn.Module):
         nn.init.xavier_uniform_(self.gat1_attn)
         nn.init.xavier_uniform_(self.gat2_attn)
 
-    def _gat_layer(self, x, proj, attn_vec):
-        """Apply one multi-head graph attention layer on a fully connected graph."""
-        # x: [B, N, Fin], output: [B, N, Fout] with Fout == self.K
+    def _gat_layer(self, x, proj, attn_vec, adj_mask=None):
+        """Apply one multi-head graph attention layer.
+
+        Args:
+            x: [B, N, K]
+            adj_mask: Optional adjacency mask, shape [B, N, N] or [N, N].
+                      Non-zero entries indicate valid edges.
+        """
         B, N, _ = x.shape
         h = proj(x)  # [B, N, K]
-        head_dim = self.K // self.num_heads
+        head_dim = self.head_dim
         h = h.view(B, N, self.num_heads, head_dim).permute(0, 2, 1, 3)  # [B, H, N, D]
 
         src = h.unsqueeze(3).expand(B, self.num_heads, N, N, head_dim)
         dst = h.unsqueeze(2).expand(B, self.num_heads, N, N, head_dim)
-        pair = torch.cat([src, dst], dim=-1)  # [B, H, N, N, 2D] where 2D == K
+        pair = torch.cat([src, dst], dim=-1)  # [B, H, N, N, 2D]
 
-        e = F.leaky_relu((pair * attn_vec.view(1, self.num_heads, 1, 1, self.K)).sum(dim=-1), negative_slope=0.2)
+        e = F.leaky_relu(
+            (pair * attn_vec.view(1, self.num_heads, 1, 1, 2 * head_dim)).sum(dim=-1),
+            negative_slope=0.2,
+        )
+
+        if adj_mask is not None:
+            if adj_mask.dim() == 2:
+                adj_mask = adj_mask.unsqueeze(0).expand(B, -1, -1)
+            elif adj_mask.dim() != 3:
+                raise ValueError(f"adj_mask must have shape [N, N] or [B, N, N], got {tuple(adj_mask.shape)}")
+
+            if adj_mask.shape[0] != B or adj_mask.shape[1] != N or adj_mask.shape[2] != N:
+                raise ValueError(f"adj_mask shape {tuple(adj_mask.shape)} incompatible with x shape {tuple(x.shape)}")
+
+            eye = torch.eye(N, device=x.device, dtype=adj_mask.dtype).unsqueeze(0)
+            adj_mask = (adj_mask + eye) > 0
+            e = e.masked_fill(~adj_mask.unsqueeze(1), float('-inf'))
+
         alpha = F.softmax(e, dim=-1)  # normalize over neighbor j
-
         out = torch.matmul(alpha, h)  # [B, H, N, D]
         out = out.permute(0, 2, 1, 3).contiguous().view(B, N, self.K)  # concat heads -> K
         return out
 
-    def forward(self, x):
-        """Run a two-layer GAT and produce relay-action Q-values."""
-        # x: [B, (parallel_path + 1), K]
-        x = x.reshape(-1, self.parallel_path + 1, self.K)
+    def _format_input(self, x):
+        """Support both [B, N, K] and legacy flattened [B, N*K] inputs."""
+        if x.dim() == 3:
+            if x.shape[-1] != self.K:
+                raise ValueError(f"Expected feature dim K={self.K}, got {x.shape[-1]}.")
+            return x
+
+        if x.dim() == 2:
+            if x.shape[1] % self.K != 0:
+                raise ValueError(
+                    f"Flattened input width ({x.shape[1]}) must be divisible by K ({self.K})."
+                )
+            return x.reshape(x.shape[0], x.shape[1] // self.K, self.K)
+
+        raise ValueError(f"Unsupported input shape {tuple(x.shape)}. Expected [B,N,K] or [B,N*K].")
+
+    def forward(self, x, adj_mask=None):
+        """Run a two-layer GAT and produce relay-action Q-values.
+
+        Args:
+            x: [B, N, K] preferred; legacy [B, N*K] is also supported.
+            adj_mask: Optional adjacency mask [N,N] or [B,N,N].
+        """
+        x = self._format_input(x)
 
         mean = x.mean(dim=(0, 1), keepdim=True)
         std = x.std(dim=(0, 1), keepdim=True) + 1e-8
         x = (x - mean) / std
 
-        h = F.elu(self._gat_layer(x, self.gat1_fc, self.gat1_attn))
-        h = self._gat_layer(h, self.gat2_fc, self.gat2_attn)
+        h = F.elu(self._gat_layer(x, self.gat1_fc, self.gat1_attn, adj_mask=adj_mask))
+        h = self._gat_layer(h, self.gat2_fc, self.gat2_attn, adj_mask=adj_mask)
 
         self_node = h[:, 0, :]  # coding node
         nbr_nodes = h[:, 1:, :]
 
         self_out = F.relu(self.self_proj(self_node))
-        path_agg = F.relu(self.path_norm(self.path_proj(nbr_nodes.mean(dim=1))))
+        if nbr_nodes.size(1) > 0:
+            nbr_mean = nbr_nodes.mean(dim=1)
+        else:
+            nbr_mean = torch.zeros_like(self_node)
+        path_agg = F.relu(self.path_norm(self.path_proj(nbr_mean)))
 
         merged = torch.cat([self_out, path_agg], dim=1)
         h_merge = F.relu(self.merge_fc1(merged))
@@ -142,24 +190,24 @@ class GNNMARL(nn.Module):
         self.optimizer = torch.optim.Adam(self.q_network.parameters(), lr=learning_rate)
         self.replay_buffer = ReplayBuffer(buffer_size)
 
-    def forward(self, X):
+    def forward(self, X, adj_mask=None):
         """Return relay-action Q-values for the current feature tensor."""
-        q_values = self.q_network(X)
+        q_values = self.q_network(X, adj_mask=adj_mask)
         return q_values
 
-    def get_target_q_values(self, X):
+    def get_target_q_values(self, X, adj_mask=None):
         """Return Q-values computed by the frozen target network."""
         with torch.no_grad():
-            q_values = self.target_q_network(X)
+            q_values = self.target_q_network(X, adj_mask=adj_mask)
         return q_values
 
     def update_target_network(self):
         """Copy online-network parameters into the target network."""
         self.target_q_network.load_state_dict(self.q_network.state_dict())
 
-    def select_action(self, X, epsilon=0.1):
+    def select_action(self, X, epsilon=0.1, adj_mask=None):
         """Select a relay action using an epsilon-greedy policy."""
-        q_values = self.forward(X)
+        q_values = self.forward(X, adj_mask=adj_mask)
         if random.random() < epsilon:
             return torch.tensor(random.randint(0, 1), dtype=torch.long)
         return torch.argmax(q_values)
@@ -232,7 +280,6 @@ class GNNMARL(nn.Module):
             else:
                 self.update_target_network()
 
-            print(f"Successfully loaded model from {path}")
             return True
         except Exception as e:
             print(f"Failed to load model: {str(e)}")

@@ -16,6 +16,10 @@ AttenNC is an adaptive learning and simulation framework for generalizable netwo
 - [Mode behavior (`--mode on|off`)](#mode-behavior---mode-onoff)
 - [Outputs](#outputs)
 - [Configuration](#configuration)
+<<<<<<< HEAD
+=======
+- [Recommended `EPISODES` / `Max_test` settings](#recommended-episodes--max_test-settings)
+>>>>>>> d999ff7 (update)
 - [Notes for GitHub publishing](#notes-for-github-publishing)
 - [Simulation time model and event scheduling](#simulation-time-model-and-event-scheduling)
 - [Packet loss model](#packet-loss-model)
@@ -92,9 +96,9 @@ AttenNC/
 │  │  ├─ examples/
 │  │  ├─ checkpoints/
 │  │  └─ README.md
-│  ├─ results/
-│  ├─ packet_log/
-│  └─ data_attenNC/
+│  ├─ results/             # generated at runtime
+│  ├─ packet_log/          # generated at runtime
+│  └─ data_attenNC/        # generated at runtime
 │
 ├─ requirements.txt
 ├─ .gitignore
@@ -189,6 +193,7 @@ If `--model-dir` / `--best-state` are omitted, `test.py` uses built-in default p
 
 `--mode` controls relay coding-node selection and automatically uses mode-specific subfolders (`selection_on/` or `selection_off/`) under the provided `--model-dir` and output directories.
 
+<<<<<<< HEAD
 - `--mode on`
   - Enables relay coding-node selection (with GNN gating when applicable).
   - Trains/loads Source DQN + Relay DQN + GNN.
@@ -203,6 +208,11 @@ Default locations used in practice:
 
 - Training checkpoints: `models/checkpoints/best_by_avg_source_send/<selection_on|selection_off>/`
 - Example test checkpoints: `models/examples/best_by_avg_source_send/<selection_on|selection_off>/`
+=======
+In short: `--mode on` trains/tests Source DQN + Relay DQN + GNN, while `--mode off` trains/tests Source DQN + Relay DQN without relay coding-node selection.
+
+For the complete checkpoint layout and naming/saving rules (including `episode_<index>` best-checkpoint folders), see [`models/README.md`](./models/README.md).
+>>>>>>> d999ff7 (update)
 
 ## Outputs
 
@@ -218,14 +228,38 @@ By default, artifacts are written to mode-specific subfolders (`selection_on/` /
 - `models/checkpoints/`: local training checkpoints (typically untracked)
 - `models/examples/`: lightweight demo checkpoints for reproducibility
 
+<<<<<<< HEAD
 See `models/README.md` for checkpoint layout details.
+=======
+See [`models/README.md`](./models/README.md) for checkpoint layout details.
+>>>>>>> d999ff7 (update)
 
 ## Configuration
 
 Main settings:
 
 - `config.py`: episode count, RL hyperparameters, timing parameters, MAC/PHY packet settings
+  - `EPISODES`: number of training episodes in `train` mode.
+  - `Max_test`: number of repeated simulation runs used to compute evaluation/test averages.
 - `config_topology.py`: node layout, connectivity, and link structure
+
+### Recommended `EPISODES` / `Max_test` settings
+
+These are baseline recommendations for the default topology/config; larger topologies may require more episodes.
+
+Recommended values used in this project workflow:
+
+- **Training (`python main.py train`)**
+  - `EPISODES = 10000`
+  - `Max_test = 100` or `1000`
+    - `Max_test = 1000` gives more stable evaluation statistics but significantly increases training time.
+- **Testing (`python main.py test`)**
+  - When running pure test/inference, `EPISODES` is not used.
+  - `Max_test = 1000` for stable statistics.
+
+Training-model selection note:
+
+- During training, the code periodically runs evaluation (`run_evaluate`) and uses test/evaluation metrics to select and save the current best model checkpoint (see `train.py`, e.g., `metrics["is_best"]`, `metrics["avg_s_f"]`, and `save_best_models(...)`).
 
 Relay coding-node selection can be set in code and overridden by CLI:
 
