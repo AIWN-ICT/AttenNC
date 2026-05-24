@@ -187,7 +187,7 @@ python test.py --model-dir models/best_by_avg_source_send --best-state models/be
 If `--model-dir` / `--best-state` are omitted, `test.py` uses built-in default paths.
 
 `--best-state` supports:
-- filename only (resolved under final `--model-dir`), e.g. `best_epoch_GNN.pkl`
+- filename only (resolved under final `--model-dir`), e.g. `best_epoch.pkl`
 - relative path (resolved from project directory)
 - absolute path
 
@@ -327,7 +327,7 @@ References:
 ### Q2. `test` cannot find checkpoint files.
 
 **Symptoms**
-- Missing `*.pt` or `best_epoch_GNN.pkl` errors.
+- Missing `*.pt` or `best_epoch.pkl` errors.
 
 **Checklist**
 - Run training first.

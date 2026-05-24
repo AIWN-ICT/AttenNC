@@ -44,7 +44,7 @@ def build_parser():
         help="Directory for saving best model files (default: models/checkpoints/best_by_avg_source_send)",
     )
     parser.add_argument("--result-dir", default=str(DEFAULT_RESULT_DIR), help="Directory for generated outputs")
-    parser.add_argument("--best-state", default="best_epoch_GNN.pkl", help="Filename or path for best random-state snapshot")
+    parser.add_argument("--best-state", default="best_epoch.pkl", help="Filename or path for best random-state snapshot")
     parser.add_argument("--skip-compile", action="store_true", help="Disable torch.compile for compatibility")
     parser.add_argument(
         "--mode",

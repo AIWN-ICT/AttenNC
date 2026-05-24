@@ -49,7 +49,7 @@ def build_parser():
     parser.add_argument("--result-dir", default=str(DEFAULT_RESULT_DIR), help="Directory for generated outputs")
     parser.add_argument(
         "--best-state",
-        default="best_epoch_GNN.pkl",
+        default="best_epoch.pkl",
         help="Best random-state snapshot path. Supports filename (resolved in model-dir) or relative/absolute path.",
     )
     parser.add_argument("--skip-compile", action="store_true", help="Disable torch.compile for compatibility")
