@@ -133,7 +133,7 @@ def save_best_models(
     enable_relay_coding_selection=True,
 ):
     """Persist best-performing checkpoints into episode subdirectories."""
-    episode_tag = f"episode_{episode + 1}"
+    episode_tag = f"episode_{episode}"
     episode_model_dir = model_dir / episode_tag
     episode_model_dir.mkdir(parents=True, exist_ok=True)
 
