@@ -15,7 +15,7 @@ models/
 │        ├─ dqn_agent_s_min.pt
 │        ├─ dqn_agent_r_min.pt
 │        ├─ gnn_model_dqn.pt
-│        └─ best_epoch_GNN.pkl
+│        └─ best_epoch.pkl
 └─ checkpoints/
    └─ best_by_avg_source_send/
       └─ <selection_on|selection_off>/
@@ -23,7 +23,7 @@ models/
          │  ├─ dqn_agent_s_min.pt
          │  ├─ dqn_agent_r_min.pt
          │  ├─ gnn_model_dqn.pt
-         │  └─ best_epoch_GNN.pkl
+         │  └─ best_epoch.pkl
          ├─ episode_20/
          │  └─ ...
          └─ episode_N/
@@ -54,4 +54,6 @@ Relay coding-node selection can be set in code and overridden by CLI:
 
 1. Keep only minimal demo artifacts in `models/examples/`.
 2. Store large or frequently changing training outputs in `models/checkpoints/`.
-3. If `.pt`/`.pkl` files are large, prefer Git LFS or GitHub Releases.
+3. `*.pt` model files are required for `test`; missing files will fail loading.
+4. `best_epoch.pkl` stores RNG state snapshot for reproducibility. If it is missing, `test` can still run, but random-state restoration is skipped and results may differ slightly across runs.
+5. If `.pt`/`.pkl` files are large, prefer Git LFS or GitHub Releases.

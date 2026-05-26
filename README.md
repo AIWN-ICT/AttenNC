@@ -191,6 +191,8 @@ If `--model-dir` / `--best-state` are omitted, `test.py` uses built-in default p
 - relative path (resolved from project directory)
 - absolute path
 
+`best_epoch.pkl` is used for RNG-state restoration; missing it does not block testing but affects strict reproducibility. See [`models/README.md`](./models/README.md).
+
 ## Mode behavior (`--mode on|off`)
 
 `--mode` controls relay coding-node selection and automatically uses mode-specific subfolders (`selection_on/` or `selection_off/`) under the provided `--model-dir` and output directories.
@@ -327,15 +329,17 @@ References:
 ### Q2. `test` cannot find checkpoint files.
 
 **Symptoms**
-- Missing `*.pt` or `best_epoch.pkl` errors.
+- Missing required model files (`*.pt`) errors.
+- Optional `best_epoch.pkl` not found (when `--best-state` points to a missing file).
 
 **Checklist**
 - Run training first.
 - Ensure `--model-dir` points to the correct mode subfolder (`selection_on` or `selection_off`).
-- Ensure required files exist for that mode.
+- Ensure required `*.pt` files exist for that mode.
 
 **Recommended action**
 - Re-run with explicit `--model-dir` and `--best-state` paths.
+- If `best_epoch.pkl` is missing, test can still run; use the matching file to troubleshoot reproducibility differences (see [`models/README.md`](./models/README.md)).
 - If model dimensions/config changed, retrain and test with newly generated checkpoints.
 
 ### Q3. Should I use `--mode on` or `--mode off`?
